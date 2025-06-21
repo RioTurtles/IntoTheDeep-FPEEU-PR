@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.acmerobotics.roadrunner.geometry.Pose2d;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -11,6 +12,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 public class Project1Hardware {
     DcMotorEx sliderLeft, sliderRight, arm;
@@ -20,9 +23,9 @@ public class Project1Hardware {
     DifferentialModule differential;
     Mode mode = Mode.CHAMBER;
 
-    final double INITIAL_ANGLE = -45.0;
+    final double INITIAL_ANGLE = -35.7;
     final double CPR = ((((1 + ((double) 46 / 11))) * (1 + ((double) 46 / 11))) * 28);  // ~751.8
-    boolean intakeUp, clawIntakeOpen, clawScoringOpen;
+    boolean intakeUp = false, clawIntakeOpen, clawScoringOpen;
 
     private void init(@NonNull HardwareMap hardwareMap) {
         DcMotorEx frontLeft = hardwareMap.get(DcMotorEx.class, "frontLeft");
@@ -48,21 +51,29 @@ public class Project1Hardware {
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backRight.setDirection(DcMotorSimple.Direction.FORWARD);
         arm.setDirection(DcMotorSimple.Direction.REVERSE);
+        sliderLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        sliderRight.setDirection(DcMotorSimple.Direction.REVERSE);
+
         frontLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         frontRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         backLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         backRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        differentialLeft.setDirection(Servo.Direction.FORWARD);
-        differentialRight.setDirection(Servo.Direction.REVERSE);
+        differentialLeft.setDirection(Servo.Direction.REVERSE);
+        differentialRight.setDirection(Servo.Direction.FORWARD);
         clawIntake.setDirection(Servo.Direction.FORWARD);
         clawScoring.setDirection(Servo.Direction.FORWARD);
+
+        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(
+                RevHubOrientationOnRobot.LogoFacingDirection.UP,
+                RevHubOrientationOnRobot.UsbFacingDirection.BACKWARD
+        )));
 
         drivetrain = new Drivetrain(frontLeft, frontRight, backLeft, backRight);
         differential = new DifferentialModule(differentialLeft, differentialRight);
     }
 
-    private void resetEncoders() {
+    public void resetEncoders() {
         sliderLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         sliderRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         arm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -114,6 +125,12 @@ public class Project1Hardware {
         return robot;
     }
 
+    @NonNull public static Project1Hardware initUndefined(HardwareMap hardwareMap) {
+        Project1Hardware robot = new Project1Hardware();
+        robot.init(hardwareMap);
+        return robot;
+    }
+
     // Hardware methods go below.
 
     public void setSlider(int k, double power) {
@@ -132,9 +149,7 @@ public class Project1Hardware {
         sliderRight.setPower(power);
     }
 
-    public int getSlider() {
-        return (sliderLeft.getCurrentPosition() + sliderRight.getCurrentPosition()) / 2;
-    }
+    public int getSlider() {return sliderLeft.getCurrentPosition();}
 
     public boolean sliderInPosition(int tolerance) {
         return Math.abs(getSlider() - sliderLeft.getTargetPosition()) <= tolerance;
@@ -142,6 +157,13 @@ public class Project1Hardware {
 
     public void setSlider(int k) {setSlider(k, 1);}
     public boolean sliderInPosition() {return sliderInPosition(20);}
+
+    public double getSliderInches() {
+        final double PPR = ((((1 + ((double) 46 / 17))) * (1 + ((double) 46 / 17))) * 28);
+        return getSlider() / PPR * 112 / 25.4;
+    }
+
+    private double encoderToAngle(double encoder) {return encoder / CPR * 360 + INITIAL_ANGLE;}
 
     public double getArmAngle() {
         int position = arm.getCurrentPosition();
@@ -155,20 +177,30 @@ public class Project1Hardware {
         arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
     }
 
+    public boolean armInPosition(double toleranceAngle) {
+        return Math.abs(getArmAngle() - encoderToAngle(arm.getTargetPosition())) <= toleranceAngle;
+    }
+
+    public void powerOffArm() {arm.setPower(0);}
     public void setArmAngle(double angle) {setArmAngle(angle, 1);}
     public void setArmTransfer() {setArmAngle(INITIAL_ANGLE);}
-    public void setArmBasket() {setArmAngle(135);}
-    public void setArmScoring() {setArmAngle(135);}
-    public void setArmChambered() {setArmAngle(145);}
+    public void setArmBasketFront() {setArmAngle(45);}
+    public void setArmBasketRear() {setArmAngle(135);}
+    public void setArmScoring() {setArmAngle(60);}
+    public void setArmChambered() {setArmAngle(115);}
+    public boolean armInPosition() {return armInPosition(2.5);}
 
     public void clawIntakeOpen() {clawIntake.setPosition(0.5); clawIntakeOpen = true;}
-    public void clawIntakeClose() {clawIntake.setPosition(0.1); clawIntakeOpen = false;}
+    public void clawIntakeClose() {clawIntake.setPosition(0); clawIntakeOpen = false;}
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
-    public void clawScoringClose() {clawScoring.setPosition(0.65); clawScoringOpen = false;}
+    public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
     public void intakeUp() {differential.setPitch(0.82); intakeUp = true;}
     public void intakeDown() {differential.setPitch(DifferentialModule.HALF); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
+
+    public double getIMU() {return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);}
+    public double getIMUDegrees() {return Math.toDegrees(getIMU());}
 
     // Utility and robot classes go below.
 
