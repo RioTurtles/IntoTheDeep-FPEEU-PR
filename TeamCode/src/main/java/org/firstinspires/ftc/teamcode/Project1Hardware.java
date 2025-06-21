@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -17,6 +18,7 @@ public class Project1Hardware {
     IMU imu;
     Drivetrain drivetrain;
     DifferentialModule differential;
+    Mode mode = Mode.CHAMBER;
 
     final double INITIAL_ANGLE = -45.0;
     final double CPR = ((((1 + ((double) 46 / 11))) * (1 + ((double) 46 / 11))) * 28);  // ~751.8
@@ -72,10 +74,15 @@ public class Project1Hardware {
             clawIntakeOpen = autonomous.clawIntakeOpen;
             clawScoringOpen = autonomous.clawScoringOpen;
             differential = autonomous.differential;
+            mode = autonomous.mode;
         }
     }
 
-    public void copyToStorage() {Storage.robot = this;}
+    public void copyToStorage(Pose2d lastPose, Operation operation) {
+        Storage.robot = this;
+        Storage.lastPose = lastPose;
+        Storage.lastOpMode = operation;
+    }
 
     // OpMode-specific initialisation methods go here. Note that there is no default constructor
     // for this class, so <instance>.init(HardwareMap hardwareMap) must be called.
@@ -125,7 +132,16 @@ public class Project1Hardware {
         sliderRight.setPower(power);
     }
 
+    public int getSlider() {
+        return (sliderLeft.getCurrentPosition() + sliderRight.getCurrentPosition()) / 2;
+    }
+
+    public boolean sliderInPosition(int tolerance) {
+        return Math.abs(getSlider() - sliderLeft.getTargetPosition()) <= tolerance;
+    }
+
     public void setSlider(int k) {setSlider(k, 1);}
+    public boolean sliderInPosition() {return sliderInPosition(20);}
 
     public double getArmAngle() {
         int position = arm.getCurrentPosition();
@@ -157,9 +173,6 @@ public class Project1Hardware {
     // Utility and robot classes go below.
 
     public static class Drivetrain {
-        double sin, cos, theta, max, power;
-        double vertical, horizontal, pivot, heading;
-        double powerFL, powerFR, powerBL, powerBR;
         DcMotor frontLeft, frontRight, backLeft, backRight;
 
         public Drivetrain(DcMotor fL, DcMotor fR, DcMotor bL, DcMotor bR) {
@@ -170,22 +183,17 @@ public class Project1Hardware {
         }
 
         public void remote(double vertical, double horizontal, double pivot, double heading) {
-            this.vertical = vertical;
-            this.horizontal = horizontal;
-            this.pivot = pivot;
-            this.heading = heading;
+            double theta = 2 * Math.PI + Math.atan2(vertical, horizontal) - heading;
+            double power = Math.hypot(horizontal, vertical);
 
-            theta = 2 * Math.PI + Math.atan2(vertical, horizontal) - heading;
-            power = Math.hypot(horizontal, vertical);
+            double sin = Math.sin(theta - Math.PI / 4);
+            double cos = Math.cos(theta - Math.PI / 4);
+            double max = Math.max(Math.abs(sin), Math.abs(cos));
 
-            sin = Math.sin(theta - Math.PI / 4);
-            cos = Math.cos(theta - Math.PI / 4);
-            max = Math.max(Math.abs(sin), Math.abs(cos));
-
-            powerFL = power * (cos / max) + pivot;
-            powerFR = power * (sin / max) - pivot;
-            powerBL = power * -(sin / max) - pivot;
-            powerBR = power * -(cos / max) + pivot;
+            double powerFL = power * (cos / max) + pivot;
+            double powerFR = power * (sin / max) - pivot;
+            double powerBL = power * -(sin / max) - pivot;
+            double powerBR = power * -(cos / max) + pivot;
 
             frontLeft.setPower(-powerFL);
             frontRight.setPower(-powerFR);
@@ -307,4 +315,7 @@ public class Project1Hardware {
             setValues(pitch, difference, -difference);
         }
     }
+
+    public enum Mode {BASKET, CHAMBER}
+    public enum Operation {AUTONOMOUS, TELEOPERATED}
 }
