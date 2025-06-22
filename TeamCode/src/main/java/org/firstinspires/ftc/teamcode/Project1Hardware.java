@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -18,6 +19,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Project1Hardware {
     DcMotorEx sliderLeft, sliderRight, arm;
     ServoImplEx differentialLeft, differentialRight, clawIntake, clawScoring;
+    AnalogInput ultrasonicLeft, ultrasonicRight, ultrasonicBack;
     IMU imu;
     Drivetrain drivetrain;
     DifferentialModule differential;
@@ -53,6 +55,8 @@ public class Project1Hardware {
         arm.setDirection(DcMotorSimple.Direction.REVERSE);
         sliderLeft.setDirection(DcMotorSimple.Direction.FORWARD);
         sliderRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        sliderLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+        sliderRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         frontLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         frontRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -183,11 +187,11 @@ public class Project1Hardware {
 
     public void powerOffArm() {arm.setPower(0);}
     public void setArmAngle(double angle) {setArmAngle(angle, 1);}
-    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE);}
+    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE, 0.4);}
     public void setArmBasketFront() {setArmAngle(45);}
     public void setArmBasketRear() {setArmAngle(135);}
-    public void setArmScoring() {setArmAngle(60);}
-    public void setArmChambered() {setArmAngle(115);}
+    public void setArmScoring() {setArmAngle(15);}
+    public void setArmChambered() {setArmAngle(130);}
     public boolean armInPosition() {return armInPosition(2.5);}
 
     public void clawIntakeOpen() {clawIntake.setPosition(0.5); clawIntakeOpen = true;}
@@ -195,7 +199,7 @@ public class Project1Hardware {
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
     public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
-    public void intakeUp() {differential.setPitch(0.82); intakeUp = true;}
+    public void intakeUp() {differential.setPitch(0.85); intakeUp = true;}
     public void intakeDown() {differential.setPitch(DifferentialModule.HALF); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
 

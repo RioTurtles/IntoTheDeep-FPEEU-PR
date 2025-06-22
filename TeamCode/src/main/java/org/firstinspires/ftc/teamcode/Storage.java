@@ -7,12 +7,12 @@ public class Storage {
     public static Pose2d lastPose;
     public static Project1Hardware.Operation lastOpMode;
 
-    public static final int SLIDER_TRANSFER = 55;
+    public static final int SLIDER_TRANSFER = 40;
     public static final int SLIDER_CLEARANCE = 255;
     public final static double SLIDER_MINIMUM = 461;
 
     static {
-        lastPose = new Pose2d();
+        lastPose = new Pose2d(8.54, -62.99, Math.toRadians(90.00));
         lastOpMode = Project1Hardware.Operation.TELEOPERATED;
     }
 }
