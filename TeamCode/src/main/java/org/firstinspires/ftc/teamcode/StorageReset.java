@@ -4,7 +4,7 @@ import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-@TeleOp(name="Transition Reset")
+@TeleOp(name="Clear Autonomous Data")
 public class StorageReset extends LinearOpMode {
     @Override
     public void runOpMode() {

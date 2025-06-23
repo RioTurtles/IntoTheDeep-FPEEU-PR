@@ -7,9 +7,10 @@ public class Storage {
     public static Pose2d lastPose;
     public static Project1Hardware.Operation lastOpMode;
 
-    public static final int SLIDER_TRANSFER = 40;
-    public static final int SLIDER_CLEARANCE = 255;
-    public final static double SLIDER_MINIMUM = 461;
+    public final static double REFACTOR_CONSTANT = 384.5 / 145.1;
+    public static final int SLIDER_TRANSFER = (int) Math.round(40 / REFACTOR_CONSTANT);
+    public static final int SLIDER_CLEARANCE = (int) Math.round(255 / REFACTOR_CONSTANT);
+    public final static int SLIDER_MINIMUM = (int) Math.round(461 / REFACTOR_CONSTANT);
 
     static {
         lastPose = new Pose2d(8.54, -62.99, Math.toRadians(90.00));

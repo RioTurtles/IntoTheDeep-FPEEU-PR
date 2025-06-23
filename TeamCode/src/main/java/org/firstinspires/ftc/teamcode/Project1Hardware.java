@@ -13,6 +13,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
@@ -163,7 +164,7 @@ public class Project1Hardware {
     public boolean sliderInPosition() {return sliderInPosition(20);}
 
     public double getSliderInches() {
-        final double PPR = ((((1 + ((double) 46 / 17))) * (1 + ((double) 46 / 17))) * 28);
+        final double PPR = ((1 + ((double) 46 / 11)) * 28);
         return getSlider() / PPR * 112 / 25.4;
     }
 
@@ -187,7 +188,7 @@ public class Project1Hardware {
 
     public void powerOffArm() {arm.setPower(0);}
     public void setArmAngle(double angle) {setArmAngle(angle, 1);}
-    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE, 0.4);}
+    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE, 0.2);}
     public void setArmBasketFront() {setArmAngle(45);}
     public void setArmBasketRear() {setArmAngle(135);}
     public void setArmScoring() {setArmAngle(15);}
@@ -199,7 +200,7 @@ public class Project1Hardware {
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
     public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
-    public void intakeUp() {differential.setPitch(0.85); intakeUp = true;}
+    public void intakeUp() {differential.setPosition(0.85, 0); intakeUp = true;}
     public void intakeDown() {differential.setPitch(DifferentialModule.HALF); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
 
@@ -349,6 +350,37 @@ public class Project1Hardware {
         public final void setPosition(double pitch, double orientation) {
             double difference = HALF * orientation / 90;
             setValues(pitch, difference, -difference);
+        }
+    }
+
+    public static class PIDController {
+        double kP, kI, kD, setpoint, lastError;
+        private double integral;
+        private double lastTime;
+        ElapsedTime t;
+
+        public PIDController(double kP, double kI, double kD) {
+            this.kP = kP; this.kI = kI; this.kD = kD;
+            setpoint = 0;
+            lastError = 0;
+            integral = 0;
+            t = new ElapsedTime();
+        }
+
+        public void reset() {
+            lastError = 0;
+            integral = 0;
+            t.reset();
+        }
+
+        public double calculate(double setpoint, double input, double dt) {
+            final double error = setpoint - input;
+            this.integral += error * dt;
+            final double derivative = (error - lastError) / dt;
+            final double output = kP * error + kI * integral + kD * derivative;
+            lastError = error;
+
+            return output;
         }
     }
 

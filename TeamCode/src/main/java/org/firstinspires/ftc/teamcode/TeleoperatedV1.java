@@ -18,7 +18,7 @@ public class TeleoperatedV1 extends LinearOpMode {
     public void runOpMode() {
         Project1Hardware robot = Project1Hardware.initTeleoperated(hardwareMap);
         SampleMecanumDrive drivetrain = new SampleMecanumDrive(hardwareMap);
-        PIDController headingController = new PIDController(0.55, 0.001, 0);
+        Project1Hardware.PIDController headingController = new Project1Hardware.PIDController(0.55, 0.001, 0);
         State state = State.INIT;
         Gamepad gamepad = new Gamepad();
         Gamepad lastGamepad = new Gamepad();
@@ -108,11 +108,11 @@ public class TeleoperatedV1 extends LinearOpMode {
                 intakeControls.call();
 
                 if (gamepad.right_trigger > 0) {
-                    if (robot.getSlider() > 1300) {
+                    if (robot.getSlider() > 400) {
                         // Set power to a percentage with respect to remaining length, cubed
                         // Retain +/- power after exponent to help with overshoot
-                        double d = 1590 - robot.getSlider();
-                        double power = Math.abs(Math.pow(d / 1590, 3)) * (Math.abs(d) / d);
+                        double d = 590 - robot.getSlider();
+                        double power = Math.abs(Math.pow(d / 590, 7)) * (Math.abs(d) / d);
                         robot.setSliderPower(power);
                     } else robot.setSliderPower(1);
                 } else if (gamepad.left_trigger > 0) {
