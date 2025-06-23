@@ -1,7 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.acmerobotics.roadrunner.geometry.Pose2d;
-import com.acmerobotics.roadrunner.geometry.Vector2d;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -24,6 +23,7 @@ public class AutonomousChamber extends LinearOpMode {
         AtomicBoolean run1Async = new AtomicBoolean(false);
         AtomicBoolean run2Async = new AtomicBoolean(false);
         AtomicBoolean run3Async = new AtomicBoolean(false);
+        int cycles = 0;
 
         Pose2d currentPose;
         Pose2d startPose = new Pose2d(8.17, -62.99, Math.toRadians(90.00));
@@ -36,9 +36,8 @@ public class AutonomousChamber extends LinearOpMode {
                 .build();
 
         TrajectorySequence pathTransition = null;
-        TrajectorySequence pathGrab2 = null;
-        TrajectorySequence pathGrab3 = null;
-        TrajectorySequence pathApproach = null;
+        TrajectorySequence pathCycleEnter = null;
+        TrajectorySequence pathCycleExit = null;
 
         robot.clawScoringClose();
 
@@ -129,25 +128,95 @@ public class AutonomousChamber extends LinearOpMode {
                                 robot.clawIntakeOpen();
                                 robot.intakeSetOrientation(0);
                             })
-                            .lineToSplineHeading(new Pose2d(30.00, -55.15, Math.toRadians(135.00)))
+                            .lineToSplineHeading(new Pose2d(27.00, -52.15, Math.toRadians(135.00)))
                             .build()
                     );
                     robot.clawIntakeOpen();
-                    objective = Objective.TRANSITION;
+                    objective = Objective.CYCLE_INTAKE;
                     timer1.reset();
+                    timer2.reset();
                     run1Async.set(false);
                     run2Async.set(false);
                     run3Async.set(false);
                 }
+
+                pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
+                        .lineToSplineHeading(new Pose2d(-1.21, -33.89, Math.toRadians(90.00)))
+                        .build();
             }
 
-            if (objective == Objective.TRANSITION) {
-//                drive.followTrajectorySequence(pathApproach);
-//                objective = Objective.CYCLE;
+            if (objective == Objective.CYCLE_INTAKE) {
+                if (timer1.milliseconds() > 500) {
+                    robot.setSlider(Storage.SLIDER_TRANSFER);
+                    if (robot.sliderInPosition() || timer1.milliseconds() > 2000) {
+                        robot.clawScoringClose();
+                        objective = Objective.CYCLE_TRANSFER;
+                        timer1.reset();
+                    }
+                } else if (timer1.milliseconds() > 250) {
+                    robot.intakeUp();
+                    if (!run1Async.get()) {drive.followTrajectorySequenceAsync(pathCycleEnter); run1Async.set(true);}
+                } else {
+                    pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
+                            .lineToSplineHeading(new Pose2d(-1.21 - cycles, -33.25, Math.toRadians(90.00)))
+                            .build();
+                    robot.clawIntakeClose();
+                }
             }
 
-            if (objective == Objective.CYCLE) {
+            if (objective == Objective.CYCLE_TRANSFER) {
+                if (timer1.milliseconds() > 750) {
+                    robot.setSlider(Storage.SLIDER_CLEARANCE);
 
+                    if (robot.sliderInPosition() || timer1.milliseconds() > 500) {
+                        robot.setArmAngle(30);
+                        if (robot.armInPosition() || timer1.milliseconds() > 800) {
+                            objective = Objective.CYCLE_SCORE;
+                            timer1.reset();
+                        }
+                    }
+                } else if (timer1.milliseconds() > 500) robot.clawIntakeOpen();
+            }
+
+            if (objective == Objective.CYCLE_SCORE) {
+                robot.intakeDown();
+                robot.clawIntakeOpen();
+
+                if (!drive.isBusy() || timer2.milliseconds() > 4000) {
+                    robot.setArmAngle(135);
+                    if (robot.getArmAngle() > 110 || timer1.milliseconds() > 1500) {
+                        robot.clawScoringOpen();
+                        objective = Objective.CYCLE_RETURN;
+                        timer1.reset();
+                    }
+                }
+
+                pathCycleExit = drive.trajectorySequenceBuilder(currentPose)
+                        .lineToSplineHeading(new Pose2d(20.57, -46.46, Math.toRadians(135.00)))
+                        .addTemporalMarker(0.5, robot::setArmTransfer)
+                        .build();
+            }
+
+            if (objective == Objective.CYCLE_RETURN) {
+                drive.followTrajectorySequence(pathCycleExit);
+                robot.setSlider(590);
+                cycles++;
+                if (cycles < 4) objective = Objective.CYCLE_DELAY;
+                else objective = Objective.PARK;
+                timer1.reset();
+                timer2.reset();
+                run1Async.set(false);
+                run2Async.set(false);
+            }
+
+            if (objective == Objective.CYCLE_DELAY) {
+                if (timer1.milliseconds() > 250) {
+                    objective = Objective.CYCLE_INTAKE;
+                    timer1.reset();
+                    timer2.reset();
+                    run1Async.set(false);
+                    run2Async.set(false);
+                }
             }
 
             drive.update();
@@ -164,11 +233,11 @@ public class AutonomousChamber extends LinearOpMode {
         SCORE_PRELOAD,
         PATH_TO_FIRST,
         GRAB,
-        GRAB_2,
-        RETRACT_2,
-        GRAB_3,
-        TRANSITION,
-        CYCLE,
+        CYCLE_INTAKE,
+        CYCLE_TRANSFER,
+        CYCLE_SCORE,
+        CYCLE_RETURN,
+        CYCLE_DELAY,
         PARK
     }
 }
