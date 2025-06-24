@@ -25,7 +25,7 @@ public class AutonomousChamber extends LinearOpMode {
         AtomicBoolean run3Async = new AtomicBoolean(false);
         int cycles = 0;
 
-        Pose2d currentPose;
+        Pose2d currentPose = new Pose2d();
         Pose2d startPose = new Pose2d(8.17, -62.99, Math.toRadians(90.00));
         Pose2d chamberPose = new Pose2d(0.00, -33.89, Math.toRadians(90.00));
 
@@ -38,6 +38,7 @@ public class AutonomousChamber extends LinearOpMode {
         TrajectorySequence pathTransition = null;
         TrajectorySequence pathCycleEnter = null;
         TrajectorySequence pathCycleExit = null;
+        TrajectorySequence pathPark = null;
 
         robot.clawScoringClose();
 
@@ -158,7 +159,7 @@ public class AutonomousChamber extends LinearOpMode {
                     if (!run1Async.get()) {drive.followTrajectorySequenceAsync(pathCycleEnter); run1Async.set(true);}
                 } else {
                     pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
-                            .lineToSplineHeading(new Pose2d(-1.21 - cycles, -33.25, Math.toRadians(90.00)))
+                            .lineToSplineHeading(new Pose2d(1.95 + (cycles * 1.8), -33.25, Math.toRadians(90.00)))
                             .build();
                     robot.clawIntakeClose();
                 }
@@ -195,14 +196,25 @@ public class AutonomousChamber extends LinearOpMode {
                         .lineToSplineHeading(new Pose2d(20.57, -46.46, Math.toRadians(135.00)))
                         .addTemporalMarker(0.5, robot::setArmTransfer)
                         .build();
+
+                pathPark = drive.trajectorySequenceBuilder(currentPose)
+                        .lineToSplineHeading(new Pose2d(24.57, -46.46, Math.toRadians(135.00)))
+                        .addTemporalMarker(0.5, robot::setArmTransfer)
+                        .build();
             }
 
             if (objective == Objective.CYCLE_RETURN) {
-                drive.followTrajectorySequence(pathCycleExit);
-                robot.setSlider(590);
                 cycles++;
-                if (cycles < 4) objective = Objective.CYCLE_DELAY;
-                else objective = Objective.PARK;
+                robot.setSlider(590);
+
+                if (cycles < 4) {
+                    objective = Objective.CYCLE_DELAY;
+                    drive.followTrajectorySequence(pathCycleExit);
+                } else {
+                    objective = Objective.PARK;
+                    drive.followTrajectorySequence(pathPark);
+                }
+
                 timer1.reset();
                 timer2.reset();
                 run1Async.set(false);
@@ -225,6 +237,8 @@ public class AutonomousChamber extends LinearOpMode {
             telemetry.addData("Arm angle", robot.getArmAngle());
             telemetry.update();
         }
+
+        robot.copyToStorage(currentPose, Project1Hardware.Operation.AUTONOMOUS);
     }
 
     enum Objective {

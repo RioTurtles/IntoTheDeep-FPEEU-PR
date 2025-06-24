@@ -65,6 +65,9 @@ public class TeleoperatedV1 extends LinearOpMode {
         waitForStart();
         drivetrain.setPoseEstimate(Storage.lastPose);
 
+        if (Storage.lastOpMode == Project1Hardware.Operation.AUTONOMOUS)
+            state = State.AUTONOMOUS_END;
+
         while (opModeIsActive()) {
             lastGamepad.copy(gamepad); gamepad.copy(gamepad1);
             lastOperator.copy(operator); operator.copy(gamepad2);
@@ -74,6 +77,11 @@ public class TeleoperatedV1 extends LinearOpMode {
             double vertical = gamepad.left_stick_y;
             double pivot = -gamepad.right_stick_x;
             double heading = robot.getIMU();
+
+            if (state == State.AUTONOMOUS_END) {
+                state = State.INTAKE_EXTEND;
+                timer1.reset();
+            }
 
             if (state == State.INIT) {
                 if (gamepad.right_bumper && !lastGamepad.right_bumper) {
