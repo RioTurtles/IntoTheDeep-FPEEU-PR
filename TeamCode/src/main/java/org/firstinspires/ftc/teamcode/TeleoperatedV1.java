@@ -34,6 +34,7 @@ public class TeleoperatedV1 extends LinearOpMode {
         Double autoAlignTarget;
         AtomicInteger orientationPreset = new AtomicInteger();
         boolean reversing = false, chambered = false;
+        boolean retractionInitiated = false;
 
         MethodReference intakeControls = () -> {
             if (gamepad.right_bumper && !lastGamepad.right_bumper) {
@@ -43,22 +44,21 @@ public class TeleoperatedV1 extends LinearOpMode {
             if (gamepad.circle) robot.intakeUp();
             if (gamepad.cross) robot.intakeDown();
 
-            if (operator.dpad_right) {
+            if (operator.dpad_right && !lastOperator.dpad_right) {
                 orientationPreset.getAndIncrement();
                 orientationPreset.set(Range.clip(orientationPreset.intValue(), -2, 2));
             }
 
-            if (operator.dpad_left) {
+            if (operator.dpad_left && !lastOperator.dpad_left) {
                 orientationPreset.getAndDecrement();
                 orientationPreset.set(Range.clip(orientationPreset.intValue(), -2, 2));
             }
 
             switch (orientationPreset.intValue()) {
-                case -2: robot.differential.setOrientation(-90); break;
+                case -2: case 2: robot.differential.setOrientation(-90); break;
                 case -1: robot.differential.setOrientation(-45); break;
                 case 0: robot.differential.setOrientation(0); break;
                 case 1: robot.differential.setOrientation(45); break;
-                case 2: robot.differential.setOrientation(90); break;
             }
         };
 
@@ -97,6 +97,12 @@ public class TeleoperatedV1 extends LinearOpMode {
                 robot.setSlider(Storage.SLIDER_TRANSFER);
                 robot.clawScoringOpen();
                 intakeControls.call();
+                retractionInitiated = false;
+
+                if (gamepad.left_trigger > 0 && !(lastGamepad.left_trigger > 0)) {
+                    state = State.PASSING;
+                    timer1.reset();
+                }
 
                 if (gamepad.triangle && !lastGamepad.triangle) {
                     state = State.TRANSFER;
@@ -115,19 +121,24 @@ public class TeleoperatedV1 extends LinearOpMode {
             else if (state == State.INTAKE_EXTEND) {
                 intakeControls.call();
 
-                if (gamepad.right_trigger > 0) {
-                    if (robot.getSlider() > 400) {
-                        // Set power to a percentage with respect to remaining length, cubed
-                        // Retain +/- power after exponent to help with overshoot
+                if (gamepad.right_trigger > 0 || operator.right_trigger > 0) {
+                    retractionInitiated = false;
+                    double power;
+                    if (robot.getSlider() > 500) {
                         double d = 590 - robot.getSlider();
-                        double power = Math.abs(Math.pow(d / 590, 7)) * (Math.abs(d) / d);
-                        robot.setSliderPower(power);
-                    } else robot.setSliderPower(1);
-                } else if (gamepad.left_trigger > 0) {
-                    robot.setSliderPower(-1);
-                } else if (!reversing) {
-                    robot.setSlider(robot.getSlider(), 1);
-                }
+                        power = Math.abs(Math.pow(d / 590, 3)) * (Math.abs(d) / d);
+                    } else power = 1.0;
+
+                    if (gamepad.right_trigger > 0) robot.setSliderPower(power * 0.7);
+                    else if (operator.right_trigger > 0) robot.setSliderPower(power * 0.2);
+
+                } else if (gamepad.left_trigger > 0 || operator.left_trigger > 0) {
+                    if (gamepad.left_trigger > 0 && lastGamepad.left_trigger > 0)
+                        robot.setSliderPower(-0.7);
+                    else if (operator.left_trigger > 0 && lastOperator.left_trigger > 0)
+                        robot.setSliderPower(-0.2);
+
+                } else if (!retractionInitiated) robot.setSliderPower(0);
 
                 if (robot.getSlider() < Storage.SLIDER_MINIMUM
                         && !(gamepad.right_trigger > 0)
@@ -136,27 +147,22 @@ public class TeleoperatedV1 extends LinearOpMode {
                     state = State.INTAKE;
                 }
 
-                if (PoseEstimation.collideWithBarrier(currentPose, robot.getSliderInches()))
+                if (PoseEstimation.collideWithBarrier(currentPose, robot.getSliderInches())
+                        && !gamepad.cross)
                     robot.intakeUp();
                 else if (lastGamepad.right_trigger > 0) robot.intakeDown();
 
                 if (gamepad.left_bumper || gamepad.triangle) {
-                    if ((gamepad.left_bumper && !lastGamepad.left_bumper && !gamepad.triangle)
-                            || (gamepad.triangle && !lastGamepad.triangle && !gamepad.left_bumper))
-                        timer2.reset();
+                    retractionInitiated = true;
+                    timer1.reset();
+                }
 
+                if (retractionInitiated) {
                     if (robot.intakeUp) {
                         robot.setSlider(Storage.SLIDER_TRANSFER);
-                        if (gamepad.left_bumper) {
-                            reversing = true;
-                            if (robot.sliderInPosition(50)) {
-                                state = State.INTAKE;
-                                robot.intakeDown();
-                            }
-                        } else if (gamepad.triangle) {
-                            state = State.TRANSFER;
-                            timer1.reset();
-                            timer2.reset();
+                        if (robot.sliderInPosition(50)) {
+                            state = State.INTAKE;
+                            robot.intakeDown();
                         }
                     } else {
                         robot.intakeUp();
@@ -165,8 +171,21 @@ public class TeleoperatedV1 extends LinearOpMode {
                 }
             }
 
+            else if (state == State.PASSING) {
+                robot.intakeDown();
+                robot.setSlider(575);
+
+                if (!(gamepad.left_trigger > 0) && lastGamepad.left_trigger > 0) {
+                    robot.clawIntakeOpen();
+                    robot.setSlider(Storage.SLIDER_TRANSFER);
+                    state = State.INTAKE;
+                    timer1.reset();
+                }
+            }
+
             else if (state == State.TRANSFER) {
                 reversing = false;
+                robot.differential.setOrientation(0);
                 robot.powerOffArm();
 
                 if (robot.getSlider() >= Storage.SLIDER_MINIMUM) {
@@ -393,6 +412,7 @@ public class TeleoperatedV1 extends LinearOpMode {
         INIT,
         INTAKE,
         INTAKE_EXTEND,
+        PASSING,
         TRANSFER,
         AWAIT,
         TRANSITION,

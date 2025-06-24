@@ -56,6 +56,11 @@ public class Project1Hardware {
         arm.setDirection(DcMotorSimple.Direction.REVERSE);
         sliderLeft.setDirection(DcMotorSimple.Direction.FORWARD);
         sliderRight.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         sliderLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         sliderRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 

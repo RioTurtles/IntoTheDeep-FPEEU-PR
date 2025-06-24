@@ -32,7 +32,7 @@ public class AutonomousChamber extends LinearOpMode {
         TrajectorySequence pathPreload = drive.trajectorySequenceBuilder(startPose)
                 .lineToConstantHeading(chamberPose.vec())
                 .addTemporalMarker(0.25, () -> robot.setSlider(155))
-                .addTemporalMarker(0.5, () ->robot.setArmAngle(30))
+                .addTemporalMarker(0.5, () -> robot.setArmAngle(30))
                 .build();
 
         TrajectorySequence pathTransition = null;
@@ -71,6 +71,7 @@ public class AutonomousChamber extends LinearOpMode {
                 pathTransition = drive.trajectorySequenceBuilder(new Pose2d(-0.09, -33.89, Math.toRadians(90.00)))
                         .lineToSplineHeading(new Pose2d(31.26, -45.09, Math.toRadians(225.00)))
                         .addDisplacementMarker(1.0, () -> {
+                            robot.clawIntakeOpen();
                             robot.setSlider(550);
                             robot.intakeDown();
                             robot.differential.setOrientation(-45);
