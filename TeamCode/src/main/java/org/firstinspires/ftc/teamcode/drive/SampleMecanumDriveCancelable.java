@@ -22,6 +22,7 @@ import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
@@ -56,10 +57,10 @@ import static org.firstinspires.ftc.teamcode.drive.DriveConstants.kV;
  */
 @Config
 public class SampleMecanumDriveCancelable extends MecanumDrive {
-    public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(0, 0, 0);
-    public static PIDCoefficients HEADING_PID = new PIDCoefficients(0, 0, 0);
+    public static PIDCoefficients TRANSLATIONAL_PID = new PIDCoefficients(6, 4, 1.75);
+    public static PIDCoefficients HEADING_PID = new PIDCoefficients(8, 0, 2);
 
-    public static double LATERAL_MULTIPLIER = 1;
+    public static double LATERAL_MULTIPLIER = 1.285415885597986 * 1.0596419469861134;
 
     public static double VX_WEIGHT = 1;
     public static double VY_WEIGHT = 1;
@@ -92,7 +93,7 @@ public class SampleMecanumDriveCancelable extends MecanumDrive {
             module.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
-        // TODO: adjust the names of the following hardware devices to match your configuration
+        // Adjust the names of the following hardware devices to match your configuration
         imu = hardwareMap.get(IMU.class, "imu");
         IMU.Parameters parameters = new IMU.Parameters(new RevHubOrientationOnRobot(
                 DriveConstants.LOGO_FACING_DIR,
@@ -100,7 +101,7 @@ public class SampleMecanumDriveCancelable extends MecanumDrive {
         ));
         imu.initialize(parameters);
 
-        // TODO: If the hub containing the IMU you are using is mounted so that the "REV" logo does
+        // If the hub containing the IMU you are using is mounted so that the "REV" logo does
         // not face up, remap the IMU axes so that the z-axis points upward (normal to the floor.)
         //
         //             | +Z axis
@@ -145,10 +146,14 @@ public class SampleMecanumDriveCancelable extends MecanumDrive {
             setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, MOTOR_VELO_PID);
         }
 
-        // TODO: reverse any motors using DcMotor.setDirection()
+        // Reverse any motors using DcMotor.setDirection()
+        leftFront.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightFront.setDirection(DcMotorSimple.Direction.FORWARD);
+        leftRear.setDirection(DcMotorSimple.Direction.REVERSE);
+        rightRear.setDirection(DcMotorSimple.Direction.FORWARD);
 
-        // TODO: if desired, use setLocalizer() to change the localization method
-        // for instance, setLocalizer(new ThreeTrackingWheelLocalizer(...));
+        // If desired, use setLocalizer() to change the localization method
+        setLocalizer(new TwoWheelTrackingLocalizerCancelable(hardwareMap, this));
 
         trajectorySequenceRunner = new TrajectorySequenceRunnerCancelable(follower, HEADING_PID);
     }
