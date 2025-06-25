@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -155,15 +156,31 @@ public class TeleoperatedV1 extends LinearOpMode {
                 if (gamepad.left_bumper || gamepad.triangle) {
                     retractionInitiated = true;
                     timer1.reset();
+                    timer2.reset();
                 }
 
                 if (retractionInitiated) {
                     if (robot.intakeUp) {
                         robot.setSlider(Storage.SLIDER_TRANSFER);
-                        if (robot.sliderInPosition(50)) {
-                            state = State.INTAKE;
-                            robot.intakeDown();
+                        if (robot.mode == Project1Hardware.Mode.SAMPLE) {
+                            if (robot.sliderInPosition(50)) {
+                                state = State.INTAKE;
+                                if (!PoseEstimation.collideWithBarrier(
+                                        currentPose,
+                                        robot.getSliderInches()
+                                )) robot.intakeDown();
+                                timer1.reset();
+                                timer2.reset();
+                            }
+                        } else if (robot.mode == Project1Hardware.Mode.SPECIMEN) {
+                            if (robot.sliderInPosition(50)) {
+                                state = State.TRANSFER;
+                                robot.intakeUp();
+                                timer1.reset();
+                                timer2.reset();
+                            }
                         }
+                        robot.differential.setOrientation(0);
                     } else {
                         robot.intakeUp();
                         robot.intakeUp = timer2.milliseconds() > 250;
@@ -236,23 +253,10 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             else if (state == State.TRANSITION) {
                 if (!reversing) {
-                    switch (robot.mode) {
-                        case BASKET:
-                            if (-135 < robot.getIMUDegrees() && robot.getIMUDegrees() < 45)
-                                robot.setArmBasketFront();
-                            else robot.setArmBasketRear();
-                            break;
-
-                        case CHAMBER:
-                            robot.setArmScoring();
-                            break;
-                    }
+                    robot.setArmScoring();
 
                     if (robot.armInPosition()) {
-                        switch (robot.mode) {
-                            case BASKET: state = State.SCORE_BASKET; break;
-                            case CHAMBER: state = State.SCORE_CHAMBER; break;
-                        }
+                        state = State.SCORING;
                         timer1.reset();
                         chambered = false;
                     }
@@ -270,37 +274,7 @@ public class TeleoperatedV1 extends LinearOpMode {
                 if (gamepad.right_bumper && !lastGamepad.right_bumper) reversing = false;
             }
 
-            else if (state == State.SCORE_BASKET) {
-                reversing = false;
-
-                if (-135 < robot.getIMUDegrees() && robot.getIMUDegrees() < 45)
-                    robot.setArmBasketFront();
-                else robot.setArmBasketRear();
-
-                if (gamepad.right_trigger > 0 && !(lastGamepad.right_trigger > 0)) {
-                    if (robot.clawScoringOpen) robot.clawScoringClose();
-                    else robot.clawScoringOpen();
-                }
-
-                if (gamepad.left_bumper && !lastGamepad.left_bumper) {
-                    state = State.TRANSITION;
-                    reversing = true;
-                    timer1.reset();
-                }
-
-                if (gamepad.right_bumper && !lastGamepad.right_bumper) {
-                    state = State.RETURN;
-                    timer1.reset();
-                }
-
-                if ((gamepad.options && !lastGamepad.options)
-                        || (gamepad.share && !lastGamepad.share)) {
-                    state = State.TRANSITION;
-                    timer1.reset();
-                }
-            }
-
-            else if (state == State.SCORE_CHAMBER) {
+            else if (state == State.SCORING) {
                 reversing = false;
 
                 if (gamepad.right_trigger > 0) {
@@ -355,6 +329,53 @@ public class TeleoperatedV1 extends LinearOpMode {
                 }
             }
 
+            else if (state == State.RESET) {
+                robot.intakeUp();
+                robot.arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                robot.sliderLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                robot.sliderRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+                if (operator.dpad_up) {
+                    robot.sliderLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    robot.sliderRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    robot.sliderLeft.setPower(-1);
+                    robot.sliderRight.setPower(-1);
+                } else {
+                    robot.setSliderPower(0);
+                    robot.sliderLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+                    robot.sliderRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+                    robot.sliderLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.sliderRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.sliderLeft.setTargetPosition(robot.sliderLeft.getCurrentPosition());
+                    robot.sliderRight.setTargetPosition(robot.sliderRight.getCurrentPosition());
+                    robot.sliderLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                    robot.sliderRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                }
+
+                if (operator.dpad_down) {
+                    robot.arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    robot.arm.setPower(-0.8);
+                }
+
+                if (!operator.dpad_down && lastOperator.dpad_down) {
+                    robot.arm.setPower(0);
+                    robot.arm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+                    robot.arm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.arm.setTargetPosition(robot.arm.getCurrentPosition());
+                    robot.arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                }
+
+                if (operator.touchpad) {
+                    state = State.INTAKE;
+                    robot.arm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.sliderLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.sliderRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+                    robot.arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    robot.sliderLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    robot.sliderRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                }
+            }
+
             if (operator.triangle) autoAlignTarget = 0.0;
             else if (operator.square) autoAlignTarget = -90.0;
             else if (operator.circle) autoAlignTarget = 90.0;
@@ -385,9 +406,24 @@ public class TeleoperatedV1 extends LinearOpMode {
                 horizontal *= 0.8;
             } else headingController.reset();
 
-            if (gamepad.share) robot.mode = Project1Hardware.Mode.BASKET;
-            if (gamepad.options) robot.mode = Project1Hardware.Mode.CHAMBER;
-            if (gamepad.touchpad) robot.imu.resetYaw();
+            if (gamepad.share) robot.mode = Project1Hardware.Mode.SAMPLE;
+            if (gamepad.options) robot.mode = Project1Hardware.Mode.SPECIMEN;
+
+            if (operator.dpad_up || operator.dpad_down) {
+                robot.powerOffArm();
+                robot.sliderLeft.setPower(0);
+                robot.sliderRight.setPower(0);
+                state = State.RESET;
+            }
+
+            if (gamepad.touchpad) {
+                robot.imu.resetYaw();
+                drivetrain.setPoseEstimate(new Pose2d(
+                        currentPose.getX(),
+                        currentPose.getY(),
+                        Math.toRadians(90.00)
+                ));
+            }
 
             robot.drivetrain.remote(vertical, horizontal, pivot, heading);
             drivetrain.update();
@@ -416,9 +452,9 @@ public class TeleoperatedV1 extends LinearOpMode {
         TRANSFER,
         AWAIT,
         TRANSITION,
-        SCORE_BASKET,
-        SCORE_CHAMBER,
-        RETURN
+        SCORING,
+        RETURN,
+        RESET
     }
 
     interface MethodReference {void call();}

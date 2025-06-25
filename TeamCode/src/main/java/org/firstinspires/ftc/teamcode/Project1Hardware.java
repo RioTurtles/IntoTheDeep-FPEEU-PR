@@ -24,7 +24,7 @@ public class Project1Hardware {
     IMU imu;
     Drivetrain drivetrain;
     DifferentialModule differential;
-    Mode mode = Mode.CHAMBER;
+    Mode mode = Mode.SAMPLE;
 
     final double INITIAL_ANGLE = -35.7;
     final double CPR = ((((1 + ((double) 46 / 11))) * (1 + ((double) 46 / 11))) * 28);  // ~751.8
@@ -205,7 +205,12 @@ public class Project1Hardware {
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
     public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
-    public void intakeUp() {differential.setPosition(0.85, 0); intakeUp = true;}
+    public void intakeUp() {
+        differentialLeft.setPosition(1);
+        differentialRight.setPosition(0.95);
+        intakeUp = true;
+    }
+
     public void intakeDown() {differential.setPitch(DifferentialModule.HALF); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
 
@@ -389,6 +394,6 @@ public class Project1Hardware {
         }
     }
 
-    public enum Mode {BASKET, CHAMBER}
+    public enum Mode {SAMPLE, SPECIMEN}
     public enum Operation {AUTONOMOUS, TELEOPERATED}
 }
