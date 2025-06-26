@@ -43,7 +43,7 @@ public class TwoWheelTrackingLocalizer extends TwoTrackingWheelLocalizer {
     public static double PARALLEL_X = -1.0; // X is the up and down direction
     public static double PARALLEL_Y = 6.5625; // Y is the strafe direction
 
-    public static double PERPENDICULAR_X = 7.71875;
+    public static double PERPENDICULAR_X = 7.1875;
     public static double PERPENDICULAR_Y = -0.1875;
 
     public static double X_MULTIPLIER = 0.996747666; // Multiplier in the X direction
@@ -69,7 +69,7 @@ public class TwoWheelTrackingLocalizer extends TwoTrackingWheelLocalizer {
 
         // Reverse any encoders using Encoder.setDirection(Encoder.Direction.REVERSE)
         parallelEncoder.setDirection(Encoder.Direction.REVERSE);
-        perpendicularEncoder.setDirection(Encoder.Direction.REVERSE);
+        perpendicularEncoder.setDirection(Encoder.Direction.FORWARD);
     }
 
     public static double encoderTicksToInches(double ticks) {

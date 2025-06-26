@@ -7,7 +7,6 @@ import com.acmerobotics.roadrunner.trajectory.Trajectory;
 import com.acmerobotics.roadrunner.trajectory.TrajectoryBuilder;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -136,8 +135,8 @@ public class TeleoperatedV1 extends LinearOpMode {
                 if (gamepad.right_trigger > 0 || operator.right_trigger > 0) {
                     retractionInitiated = false;
                     double power;
-                    if (robot.getSlider() > 500) {
-                        double d = 590 - robot.getSlider();
+                    if (robot.getSlider() > (500 - robot.inchesToEncoder(4))) {
+                        double d = 590 - robot.inchesToEncoder(4) - robot.getSlider();
                         power = Math.abs(Math.pow(d / 590, 3)) * (Math.abs(d) / d);
                     } else power = 1.0;
 
@@ -312,6 +311,7 @@ public class TeleoperatedV1 extends LinearOpMode {
                 if (gamepad.right_bumper && !lastGamepad.right_bumper) {
                     state = State.RETURN;
                     timer1.reset();
+                    cycles++;
                 }
 
                 if ((gamepad.options && !lastGamepad.options)
@@ -341,20 +341,19 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             else if (state == State.RESET) {
-                robot.intakeUp();
+                intakeControls.call();
 
-                if (operator.dpad_up) robot.setSliderPower(-1); else robot.setSliderPower(0);
+                if (operator.left_trigger > 0) robot.setSliderPower(-1);
+                else robot.setSliderPower(0);
 
-                if (operator.dpad_down) robot.arm.setPower(-1); else robot.arm.setPower(0);
+                if (operator.right_trigger > 0) robot.arm.setPower(-1);
+                else robot.setArmAngle(robot.getArmAngle());
 
-                if (operator.touchpad) {
+                if (gamepad.left_bumper || gamepad.triangle) {
                     state = State.INTAKE;
-                    robot.arm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    robot.sliderLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    robot.sliderRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-                    robot.arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                    robot.sliderLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                    robot.sliderRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                    retractionInitiated = false;
+                    timer1.reset();
+                    timer2.reset();
                 }
             }
 
@@ -440,10 +439,10 @@ public class TeleoperatedV1 extends LinearOpMode {
                     drive.followTrajectoryAsync(pathObservation);
                     pathingComplete.set(false);
                     state = State.RR_PATH_RETURN;
-                } else if (robot.getArmAngle() > 110 || timer1.milliseconds() > 250) {
                     cycles++;
+                } else if (robot.getArmAngle() > 110 || timer1.milliseconds() > 250) {
                     robot.clawScoringOpen();
-                    robot.setSlider(590);
+                    robot.setSlider(590 - robot.inchesToEncoder(4));
                 } else getPath3(drive, currentPose, () -> pathingComplete.set(true));
 
                 if (gamepad.circle && !lastGamepad.circle) {
@@ -456,6 +455,7 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             else if (state == State.RR_PATH_RETURN) {
                 if (!drive.isBusy()) {
+                    robot.setArmTransfer();
                     state = State.RR_GRAB;
                     timer1.reset();
                 }
@@ -468,23 +468,21 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             if (gamepad.square && !lastGamepad.square) {
-                if (robot.clawScoringOpen) {
+                if (robot.clawScoringOpen || state == State.INIT) {
                     getPath1(drive, currentPose, () -> {
-                        robot.setSlider(590);
+                        robot.setSlider(590 - robot.inchesToEncoder(4));
                         pathingComplete.set(true);
                     });
                     state = State.RR_PATH_GRAB;
-                    timer1.reset();
-                    pathingComplete.set(false);
                 } else {
                     getPath2(drive, currentPose, () -> {
                         robot.setSlider(Storage.SLIDER_TRANSFER);
                         pathingComplete.set(true);
                     });
                     state = State.RR_APPROACH;
-                    timer1.reset();
-                    pathingComplete.set(false);
                 }
+                timer1.reset();
+                pathingComplete.set(false);
             }
 
             if (operator.triangle) autoAlignTarget = 0.0;
@@ -536,10 +534,12 @@ public class TeleoperatedV1 extends LinearOpMode {
                 ));
             }
 
-            robot.drivetrain.remote(vertical, horizontal, pivot, heading);
+            if (!drive.isBusy()) robot.drivetrain.remote(vertical, horizontal, pivot, heading);
             drive.update();
 
             telemetry.addData("State", state);
+            telemetry.addData("Mode", robot.mode);
+            telemetry.addData("Cycles", cycles);
             telemetry.addLine();
             telemetry.addData("Pose", currentPose);
             telemetry.addData("Intake", intakePose);
@@ -584,22 +584,22 @@ public class TeleoperatedV1 extends LinearOpMode {
         }
 
         pathGrab = builder
-                .lineToSplineHeading(new Pose2d(20.57, -46.46, Math.toRadians(135.00)))
-                .addSpatialMarker(new Vector2d(20.57, -46.46), callback)
+                .lineToSplineHeading(new Pose2d(19.37, -45.26, Math.toRadians(135.00)))
+                .addSpatialMarker(new Vector2d(19.37, -45.26), callback)
                 .build();
     }
 
     public void getPath2(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
         pathChamber = drive.trajectoryBuilder(pose)
-                .lineToSplineHeading(new Pose2d(7.20 - (cycles * 1.75), -33.25, Math.toRadians(90.00)))
-                .addSpatialMarker(new Vector2d(7.20 - (cycles * 1.75)), callback)
+                .lineToSplineHeading(new Pose2d(3.70 - (cycles * 1.55), -33.25, Math.toRadians(90.00)))
+                .addSpatialMarker(new Vector2d(3.70 - (cycles * 1.55)), callback)
                 .build();
     }
 
     public void getPath3(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
         pathObservation = drive.trajectoryBuilder(pose)
-                .lineToSplineHeading(new Pose2d(20.57, -46.46, Math.toRadians(135.00)))
-                .addSpatialMarker(new Vector2d(20.57, -46.46), callback)
+                .lineToSplineHeading(new Pose2d(19.37, -45.26, Math.toRadians(135.00)))
+                .addSpatialMarker(new Vector2d(19.37, -45.26), callback)
                 .build();
     }
 

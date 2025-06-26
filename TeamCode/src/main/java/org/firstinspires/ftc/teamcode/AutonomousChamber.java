@@ -27,7 +27,7 @@ public class AutonomousChamber extends LinearOpMode {
 
         Pose2d currentPose = new Pose2d();
         Pose2d startPose = new Pose2d(8.17, -62.99, Math.toRadians(90.00));
-        Pose2d chamberPose = new Pose2d(8.95, -33.89, Math.toRadians(90.00));
+        Pose2d chamberPose = new Pose2d(11.45, -33.89, Math.toRadians(90.00));
 
         TrajectorySequence pathPreload = drive.trajectorySequenceBuilder(startPose)
                 .lineToConstantHeading(chamberPose.vec())
@@ -69,7 +69,7 @@ public class AutonomousChamber extends LinearOpMode {
                 }
 
                 pathTransition = drive.trajectorySequenceBuilder(new Pose2d(-0.09, -33.89, Math.toRadians(90.00)))
-                        .lineToSplineHeading(new Pose2d(31.26, -45.09, Math.toRadians(225.00)))
+                        .lineToSplineHeading(new Pose2d(31.26, -43.59, Math.toRadians(225.00)))
                         .addDisplacementMarker(1.0, () -> {
                             robot.clawIntakeOpen();
                             robot.setSlider(550);
@@ -101,7 +101,7 @@ public class AutonomousChamber extends LinearOpMode {
                     robot.clawIntakeOpen();
                     run1Async.set(true);
                     drive.followTrajectory(drive.trajectoryBuilder(pathTransition.end())
-                            .lineToSplineHeading(new Pose2d(40.15, -43.99, Math.toRadians(225.00)))
+                            .lineToSplineHeading(new Pose2d(40.15, -42.99, Math.toRadians(225.00)))
                             .build());
                     robot.clawIntakeClose();
                     timer1.reset();
@@ -125,7 +125,7 @@ public class AutonomousChamber extends LinearOpMode {
                 // Third
                 if (run1Async.get() && run2Async.get() && !run3Async.get() && timer1.milliseconds() > 250) {
                     robot.clawIntakeClose();
-                    drive.followTrajectory(drive.trajectoryBuilder(new Pose2d(54.30, -31.61, Math.toRadians(200.00)))
+                    drive.followTrajectory(drive.trajectoryBuilder(new Pose2d(53.10, -30.41, Math.toRadians(200.00)))
                             .addTemporalMarker(0.75, () -> {
                                 robot.clawIntakeOpen();
                                 robot.intakeSetOrientation(0);
@@ -143,6 +143,7 @@ public class AutonomousChamber extends LinearOpMode {
                 }
 
                 pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
+                        .addDisplacementMarker(() -> robot.differential.setOrientation(0))
                         .lineToSplineHeading(new Pose2d(-1.21, -33.89, Math.toRadians(90.00)))
                         .build();
             }
@@ -160,7 +161,7 @@ public class AutonomousChamber extends LinearOpMode {
                     if (!run1Async.get()) {drive.followTrajectorySequenceAsync(pathCycleEnter); run1Async.set(true);}
                 } else {
                     pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
-                            .lineToSplineHeading(new Pose2d(7.20 - (cycles * 1.75), -33.25, Math.toRadians(90.00)))
+                            .lineToSplineHeading(new Pose2d(9.90 - (cycles * 1.55), -33.25, Math.toRadians(90.00)))
                             .build();
                     robot.clawIntakeClose();
                 }
@@ -168,7 +169,7 @@ public class AutonomousChamber extends LinearOpMode {
 
             if (objective == Objective.CYCLE_TRANSFER) {
                 if (timer1.milliseconds() > 750) {
-                    robot.setSlider(Storage.SLIDER_CLEARANCE);
+                    robot.setSlider(Storage.SLIDER_CLEARANCE + 75);
 
                     if (robot.sliderInPosition() || timer1.milliseconds() > 500) {
                         robot.setArmAngle(30);
@@ -194,7 +195,7 @@ public class AutonomousChamber extends LinearOpMode {
                 }
 
                 pathCycleExit = drive.trajectorySequenceBuilder(currentPose)
-                        .lineToSplineHeading(new Pose2d(20.57, -46.46, Math.toRadians(135.00)))
+                        .lineToSplineHeading(new Pose2d(19.37, -45.26, Math.toRadians(135.00)))
                         .addTemporalMarker(0.5, robot::setArmTransfer)
                         .build();
 

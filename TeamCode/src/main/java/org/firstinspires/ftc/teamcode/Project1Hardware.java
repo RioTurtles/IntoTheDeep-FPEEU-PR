@@ -20,7 +20,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 public class Project1Hardware {
     DcMotorEx sliderLeft, sliderRight, arm;
     ServoImplEx differentialLeft, differentialRight, clawIntake, clawScoring;
-    AnalogInput ultrasonicLeft, ultrasonicRight, ultrasonicBack;
     IMU imu;
     Drivetrain drivetrain;
     DifferentialModule differential;
@@ -28,6 +27,7 @@ public class Project1Hardware {
 
     final double INITIAL_ANGLE = -35.7;
     final double CPR = ((((1 + ((double) 46 / 11))) * (1 + ((double) 46 / 11))) * 28);  // ~751.8
+    final double PPR = ((1 + ((double) 46 / 11)) * 28);  // ~118.1
     boolean intakeUp = false, clawIntakeOpen, clawScoringOpen;
 
     private void init(@NonNull HardwareMap hardwareMap) {
@@ -80,7 +80,7 @@ public class Project1Hardware {
         )));
 
         drivetrain = new Drivetrain(frontLeft, frontRight, backLeft, backRight);
-        differential = new DifferentialModule(differentialLeft, differentialRight);
+        differential = new DifferentialModule(differentialLeft, differentialRight, 0, 0.2);
     }
 
     public void resetEncoders() {
@@ -168,12 +168,9 @@ public class Project1Hardware {
     public void setSlider(int k) {setSlider(k, 1);}
     public boolean sliderInPosition() {return sliderInPosition(20);}
 
-    public double getSliderInches() {
-        final double PPR = ((1 + ((double) 46 / 11)) * 28);
-        return getSlider() / PPR * 112 / 25.4;
-    }
-
+    public double getSliderInches() {return getSlider() / PPR * 112 / 25.4;}
     private double encoderToAngle(double encoder) {return encoder / CPR * 360 + INITIAL_ANGLE;}
+    public int inchesToEncoder(double inches) {return (int) Math.round(inches * 25.4 / 112 * PPR);}
 
     public double getArmAngle() {
         int position = arm.getCurrentPosition();
@@ -206,12 +203,12 @@ public class Project1Hardware {
     public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
     public void intakeUp() {
-        differentialLeft.setPosition(1);
-        differentialRight.setPosition(0.95);
+        differentialLeft.setPosition(0.89);
+        differentialRight.setPosition(0.89);
         intakeUp = true;
     }
 
-    public void intakeDown() {differential.setPitch(DifferentialModule.HALF); intakeUp = false;}
+    public void intakeDown() {differential.setPosition(0.3, 0); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
 
     public double getIMU() {return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);}

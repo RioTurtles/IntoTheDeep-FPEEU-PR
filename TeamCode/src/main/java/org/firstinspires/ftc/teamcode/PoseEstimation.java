@@ -15,9 +15,14 @@ public class PoseEstimation {
 
     public static boolean collideWithBarrier(Pose2d robotPose, double sliderInches) {
         Pose2d intakePose = getIntakePose(robotPose, sliderInches);
-        return (((9.454 <= intakePose.getX() && intakePose.getX() <= 23.454)
+        boolean longEdge = (((9.454 <= intakePose.getX() && intakePose.getX() <= 23.454)
                 || (-23.454 <= intakePose.getX() && intakePose.getX() <= -9.454))
                 && (-22.25 <= intakePose.getY() && intakePose.getY() <= 22.5));
+        boolean shortEdge = (((-16.05 <= intakePose.getX() && intakePose.getX() <= 16.05)
+                || (-25.20 <= intakePose.getY() && intakePose.getY() <= -23.20))
+                && (23.20 <= intakePose.getY() && intakePose.getY() <= 23.20));
+
+        return longEdge || shortEdge;
     }
 
     public static boolean intakeInObservation(Pose2d robotPose, double sliderInches) {
