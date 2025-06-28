@@ -19,8 +19,8 @@ public class PoseEstimation {
                 || (-23.454 <= intakePose.getX() && intakePose.getX() <= -9.454))
                 && (-22.25 <= intakePose.getY() && intakePose.getY() <= 22.5));
         boolean shortEdge = (((-16.05 <= intakePose.getX() && intakePose.getX() <= 16.05)
-                || (-25.20 <= intakePose.getY() && intakePose.getY() <= -23.20))
-                && (23.20 <= intakePose.getY() && intakePose.getY() <= 23.20));
+                || (-18.20 <= intakePose.getY() && intakePose.getY() <= -16.20))
+                && (16.20 <= intakePose.getY() && intakePose.getY() <= 18.20));
 
         return longEdge || shortEdge;
     }

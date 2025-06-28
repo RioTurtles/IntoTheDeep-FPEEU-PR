@@ -5,7 +5,6 @@ import androidx.annotation.Nullable;
 
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
-import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -194,17 +193,24 @@ public class Project1Hardware {
     public void setArmBasketFront() {setArmAngle(45);}
     public void setArmBasketRear() {setArmAngle(135);}
     public void setArmScoring() {setArmAngle(15);}
-    public void setArmChambered() {setArmAngle(130);}
+    public void setArmChambered() {setArmAngle(115);}
     public boolean armInPosition() {return armInPosition(2.5);}
 
     public void clawIntakeOpen() {clawIntake.setPosition(0.5); clawIntakeOpen = true;}
     public void clawIntakeClose() {clawIntake.setPosition(0); clawIntakeOpen = false;}
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
+    public void clawScoringOpenMax() {clawScoring.setPosition(0.9); clawScoringOpen = true;}
     public void clawScoringClose() {clawScoring.setPosition(0.62); clawScoringOpen = false;}
 
+    public void intakeUp2() {
+        differentialLeft.setPosition(0);
+        differentialRight.setPosition(0);
+        intakeUp = true;
+    }
+
     public void intakeUp() {
-        differentialLeft.setPosition(0.89);
-        differentialRight.setPosition(0.89);
+        differentialLeft.setPosition(1);
+        differentialRight.setPosition(1);
         intakeUp = true;
     }
 
@@ -353,6 +359,8 @@ public class Project1Hardware {
             double distance = HALF * target / 90;
             setDifferences(distance, -distance);
         }
+
+        public double getOrientation() {return diffLeft / HALF * 90;}
 
         public final void setPosition(double pitch, double orientation) {
             double difference = HALF * orientation / 90;
