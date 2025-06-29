@@ -196,7 +196,7 @@ public class Project1Hardware {
     public void setArmChambered() {setArmAngle(115);}
     public boolean armInPosition() {return armInPosition(2.5);}
 
-    public void clawIntakeOpen() {clawIntake.setPosition(0.5); clawIntakeOpen = true;}
+    public void clawIntakeOpen() {clawIntake.setPosition(0.3); clawIntakeOpen = true;}
     public void clawIntakeClose() {clawIntake.setPosition(0); clawIntakeOpen = false;}
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
     public void clawScoringOpenMax() {clawScoring.setPosition(0.9); clawScoringOpen = true;}
@@ -214,7 +214,7 @@ public class Project1Hardware {
         intakeUp = true;
     }
 
-    public void intakeDown() {differential.setPosition(0.3, 0); intakeUp = false;}
+    public void intakeDown() {differential.setPosition(0.28, 0); intakeUp = false;}
     public void intakeSetOrientation(double angle) {differential.setOrientation(angle);}
 
     public double getIMU() {return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);}

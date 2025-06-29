@@ -53,18 +53,6 @@ public class TeleoperatedV1 extends LinearOpMode {
                 if (robot.clawIntakeOpen) robot.clawIntakeClose(); else robot.clawIntakeOpen();
             }
 
-            if ((gamepad.dpad_right && !lastGamepad.dpad_right)
-                    || (operator.dpad_right && !lastOperator.dpad_right)) {
-                orientationPreset.getAndIncrement();
-                if (orientationPreset.get() == 2) orientationPreset.set(-2);
-            }
-
-            if ((gamepad.dpad_left && !lastGamepad.dpad_left)
-                    || (operator.dpad_left && !lastOperator.dpad_left)) {
-                orientationPreset.getAndDecrement();
-                if (orientationPreset.get() == -3) orientationPreset.set(1);
-            }
-
             if (gamepad.circle) robot.intakeUp2();
             if (gamepad.cross) robot.intakeDown();
 
@@ -75,6 +63,20 @@ public class TeleoperatedV1 extends LinearOpMode {
                     case 0: robot.differential.setOrientation(0); break;
                     case 1: robot.differential.setOrientation(45); break;
                 }
+            }
+        };
+
+        MethodReference orientationControls = () -> {
+            if ((gamepad.dpad_left && !lastGamepad.dpad_left)
+                    || (operator.dpad_left && !lastOperator.dpad_left)) {
+                orientationPreset.getAndIncrement();
+                if (orientationPreset.get() == 2) orientationPreset.set(-2);
+            }
+
+            if ((gamepad.dpad_right && !lastGamepad.dpad_right)
+                    || (operator.dpad_right && !lastOperator.dpad_right)) {
+                orientationPreset.getAndDecrement();
+                if (orientationPreset.get() == -3) orientationPreset.set(1);
             }
         };
 
@@ -118,6 +120,7 @@ public class TeleoperatedV1 extends LinearOpMode {
 
                 if (gamepad.left_trigger > 0 && !(lastGamepad.left_trigger > 0)) {
                     state = State.PASSING;
+                    orientationPreset.set(0);
                     timer1.reset();
                 }
 
@@ -192,9 +195,12 @@ public class TeleoperatedV1 extends LinearOpMode {
                                 timer2.reset();
                             }
                         }
-                        robot.intakeUp2();
+
+                        if (robot.mode == Project1Hardware.Mode.SAMPLE) robot.intakeUp2();
+                        else robot.intakeUp();
                     } else {
-                        robot.intakeUp2();
+                        if (robot.mode == Project1Hardware.Mode.SAMPLE) robot.intakeUp2();
+                        else robot.intakeUp();
                         robot.intakeUp = timer2.milliseconds() > 250;
                     }
                 }
@@ -216,7 +222,6 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             else if (state == State.TRANSFER) {
                 reversing = false;
-                robot.intakeUp();
                 robot.powerOffArm();
 
                 if (robot.getSlider() >= Storage.SLIDER_MINIMUM) {
@@ -237,7 +242,7 @@ public class TeleoperatedV1 extends LinearOpMode {
                         robot.intakeUp = timer1.milliseconds() > 500;
                     }
 
-                    if (robot.sliderInPosition(30) && robot.intakeUp) {
+                    if (robot.sliderInPosition() && robot.intakeUp) {
                         state = State.AWAIT;
                         timer1.reset();
                         robot.powerOffArm();
@@ -552,6 +557,7 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             if (operator.dpad_up && !lastOperator.dpad_up) cycles++;
             if (operator.dpad_down && !lastOperator.dpad_down) cycles--;
+            orientationControls.call();
 
             if (!drive.isBusy()) robot.drivetrain.remote(vertical, horizontal, pivot, heading);
             drive.update();
@@ -559,6 +565,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             telemetry.addData("State", state);
             telemetry.addData("Mode", robot.mode);
             telemetry.addData("Cycles", cycles);
+            telemetry.addData("Orientation", orientationPreset.intValue() * 45 + "°");
             telemetry.addLine();
             telemetry.addData("Pose", currentPose);
             telemetry.addData("Intake", intakePose);
@@ -614,8 +621,8 @@ public class TeleoperatedV1 extends LinearOpMode {
 
     public void getPath2(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
         pathChamber = drive.trajectoryBuilder(pose, false)
-                .lineToSplineHeading(new Pose2d(3.70 - (cycles * 1.55), -33.25, Math.toRadians(90.00)))
-                .addSpatialMarker(new Vector2d(3.70 - (cycles * 1.55)), callback)
+                .lineToSplineHeading(new Pose2d(3.30 - (cycles * 1.55), -33.25, Math.toRadians(90.00)))
+                .addSpatialMarker(new Vector2d(3.30 - (cycles * 1.55)), callback)
                 .build();
     }
 

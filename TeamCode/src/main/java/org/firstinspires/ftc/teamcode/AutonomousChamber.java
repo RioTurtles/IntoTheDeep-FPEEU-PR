@@ -27,7 +27,7 @@ public class AutonomousChamber extends LinearOpMode {
 
         Pose2d currentPose = new Pose2d();
         Pose2d startPose = new Pose2d(8.17, -62.99, Math.toRadians(90.00));
-        Pose2d chamberPose = new Pose2d(11.45, -32.89, Math.toRadians(90.00));
+        Pose2d chamberPose = new Pose2d(11.05, -32.89, Math.toRadians(90.00));
 
         TrajectorySequence pathPreload = drive.trajectorySequenceBuilder(startPose)
                 .lineToConstantHeading(chamberPose.vec())
@@ -161,7 +161,7 @@ public class AutonomousChamber extends LinearOpMode {
                     if (!run1Async.get()) {drive.followTrajectorySequenceAsync(pathCycleEnter); run1Async.set(true);}
                 } else {
                     pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
-                            .lineToSplineHeading(new Pose2d(9.90 - (cycles * 1.55), -32.25, Math.toRadians(90.00)))
+                            .lineToSplineHeading(new Pose2d(9.50 - (cycles * 1.55), -32.25, Math.toRadians(90.00)))
                             .build();
                     robot.clawIntakeClose();
                 }
