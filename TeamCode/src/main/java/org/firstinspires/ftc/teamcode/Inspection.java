@@ -26,6 +26,8 @@ public class Inspection extends LinearOpMode {
         while (opModeIsActive()) {
             currentPose = drive.getPoseEstimate();
             intakePose = PoseEstimation.getIntakePose(currentPose, robot.getSliderInches());
+            lastGamepad.copy(gamepad);
+            gamepad.copy(gamepad1);
 
             if (gamepad.right_bumper && !lastGamepad.right_bumper) {
                 if (robot.getArmAngle() < 10) {robot.setArmAngle(125);
@@ -34,13 +36,14 @@ public class Inspection extends LinearOpMode {
             }
 
             if (gamepad.right_trigger > 0 && !(lastGamepad.right_trigger > 0)) {
-                if (robot.getSlider() < 100) robot.setSlider(400);
+                if (robot.getSlider() < 100) robot.setSlider(550);
                 else robot.setSlider(Storage.SLIDER_TRANSFER);
                 state = TeleoperatedV1.State.INTAKE_EXTEND;
                 robot.intakeUp2();
             }
 
             drive.update();
+            robot.drivetrain.remote(-gamepad.left_stick_y, gamepad.left_stick_x, gamepad.right_stick_x, robot.getIMU());
             telemetry.addData("State", state);
             telemetry.addData("Mode", robot.mode);
             telemetry.addData("Cycles", cycles);

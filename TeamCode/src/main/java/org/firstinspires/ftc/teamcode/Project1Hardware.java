@@ -3,31 +3,41 @@ package org.firstinspires.ftc.teamcode;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.roadrunner.geometry.Pose2d;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.ServoImplEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
+@Config
 public class Project1Hardware {
     DcMotorEx sliderLeft, sliderRight, arm;
     ServoImplEx differentialLeft, differentialRight, clawIntake, clawScoring;
     IMU imu;
     Drivetrain drivetrain;
     DifferentialModule differential;
+    UltrasonicModule ultraLeft, ultraRight, ultraBack;
     Mode mode = Mode.SAMPLE;
 
     final double INITIAL_ANGLE = -35.7;
     final double CPR = ((((1 + ((double) 46 / 11))) * (1 + ((double) 46 / 11))) * 28);  // ~751.8
     final double PPR = ((1 + ((double) 46 / 11)) * 28);  // ~118.1
     boolean intakeUp = false, clawIntakeOpen, clawScoringOpen;
+
+    public static double P = 30;
+    public static double I = 5;
+    public static double D = 5;
+    public static double F = 5;
 
     private void init(@NonNull HardwareMap hardwareMap) {
         DcMotorEx frontLeft = hardwareMap.get(DcMotorEx.class, "frontLeft");
@@ -41,6 +51,9 @@ public class Project1Hardware {
         differentialRight = hardwareMap.get(ServoImplEx.class, "differentialRight");
         clawIntake = hardwareMap.get(ServoImplEx.class, "clawIntake");
         clawScoring = hardwareMap.get(ServoImplEx.class, "clawScoring");
+        ultraLeft = new UltrasonicModule(hardwareMap, "triggerLeft", "echoLeft");
+        ultraRight = new UltrasonicModule(hardwareMap, "triggerRight", "echoRight");
+        ultraBack = new UltrasonicModule(hardwareMap, "triggerBack", "echoBack");
         imu = hardwareMap.get(IMU.class, "imu");
 
         // Call methods that must be called regardless of Autonomous or TeleOp.
@@ -62,6 +75,10 @@ public class Project1Hardware {
         backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         sliderLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
         sliderRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        PIDFCoefficients coefficients = new PIDFCoefficients(P, I, D, F);
+        sliderLeft.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, coefficients);
+        sliderRight.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, coefficients);
 
         frontLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         frontRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -152,8 +169,8 @@ public class Project1Hardware {
     }
 
     public void setSliderPower(double power) {
-        sliderLeft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        sliderRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        sliderLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        sliderRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         sliderLeft.setPower(power);
         sliderRight.setPower(power);
     }
@@ -196,7 +213,7 @@ public class Project1Hardware {
     public void setArmChambered() {setArmAngle(115);}
     public boolean armInPosition() {return armInPosition(2.5);}
 
-    public void clawIntakeOpen() {clawIntake.setPosition(0.3); clawIntakeOpen = true;}
+    public void clawIntakeOpen() {clawIntake.setPosition(0.32); clawIntakeOpen = true;}
     public void clawIntakeClose() {clawIntake.setPosition(0); clawIntakeOpen = false;}
     public void clawScoringOpen() {clawScoring.setPosition(0.78); clawScoringOpen = true;}
     public void clawScoringOpenMax() {clawScoring.setPosition(0.9); clawScoringOpen = true;}
@@ -365,6 +382,44 @@ public class Project1Hardware {
         public final void setPosition(double pitch, double orientation) {
             double difference = HALF * orientation / 90;
             setValues(pitch, difference, -difference);
+        }
+    }
+
+    public static class UltrasonicModule {
+        DigitalChannel trigger;
+        DigitalChannel echo;
+
+        public UltrasonicModule(@NonNull HardwareMap hardwareMap, String t, String e) {
+            trigger = hardwareMap.get(DigitalChannel.class, t);
+            echo = hardwareMap.get(DigitalChannel.class, e);
+            trigger.setMode(DigitalChannel.Mode.OUTPUT);
+            echo.setMode(DigitalChannel.Mode.INPUT);
+        }
+
+        public synchronized double getDistance() throws InterruptedException {
+            // 1. Send trigger pulse
+            trigger.setState(false);
+            Thread.sleep(2); // 2 ms
+            trigger.setState(true);
+            Thread.sleep(0, 10000); // 10 µs
+            trigger.setState(false);
+
+            // 2. Wait for echo to go HIGH
+            ElapsedTime timer = new ElapsedTime();
+            while (!echo.getState()) {
+                if (timer.milliseconds() > 100) return -1; // timeout
+            }
+            double startTime = timer.nanoseconds();
+
+            // 3. Wait for echo to go LOW
+            while (echo.getState()) {
+                if (timer.milliseconds() > 100) return -1; // timeout
+            }
+            double endTime = timer.nanoseconds();
+
+            // 4. Calculate duration and distance
+            double durationMicro = (endTime - startTime) / 1000.0; // ns to µs
+            return durationMicro / 58.2 / 2.54; // Distance in cm
         }
     }
 

@@ -33,4 +33,12 @@ public class PoseEstimation {
 
         return rectangle || triangle;
     }
+
+    public static Pose2d getUltrasonicPose(double distSide, double distPlayer, double headingRad) {
+        return new Pose2d(
+                70.125 - distSide * Math.cos(headingRad),
+                -70.125 + distPlayer * Math.cos(headingRad),
+                headingRad
+        );
+    }
 }

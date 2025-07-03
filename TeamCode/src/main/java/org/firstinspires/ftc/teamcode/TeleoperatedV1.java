@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @TeleOp
 public class TeleoperatedV1 extends LinearOpMode {
+    Project1Hardware robot;
+    SampleMecanumDriveCancelable drive;
     Trajectory pathGrab = null;
     Trajectory pathChamber = null;
     Trajectory pathObservation = null;
@@ -27,8 +29,8 @@ public class TeleoperatedV1 extends LinearOpMode {
 
     @Override
     public void runOpMode() throws InterruptedException, PathContinuityViolationException {
-        Project1Hardware robot = Project1Hardware.initTeleoperated(hardwareMap);
-        SampleMecanumDriveCancelable drive = new SampleMecanumDriveCancelable(hardwareMap);
+        robot = Project1Hardware.initTeleoperated(hardwareMap);
+        drive = new SampleMecanumDriveCancelable(hardwareMap);
         Project1Hardware.PIDController headingController = new Project1Hardware.PIDController(0.625, 0.001, 0.001);
         State state = State.INIT;
         Gamepad gamepad = new Gamepad();
@@ -69,14 +71,14 @@ public class TeleoperatedV1 extends LinearOpMode {
         MethodReference orientationControls = () -> {
             if ((gamepad.dpad_left && !lastGamepad.dpad_left)
                     || (operator.dpad_left && !lastOperator.dpad_left)) {
-                orientationPreset.getAndIncrement();
-                if (orientationPreset.get() == 2) orientationPreset.set(-2);
+                orientationPreset.getAndDecrement();
+                if (orientationPreset.get() == -3) orientationPreset.set(1);
             }
 
             if ((gamepad.dpad_right && !lastGamepad.dpad_right)
                     || (operator.dpad_right && !lastOperator.dpad_right)) {
-                orientationPreset.getAndDecrement();
-                if (orientationPreset.get() == -3) orientationPreset.set(1);
+                orientationPreset.getAndIncrement();
+                if (orientationPreset.get() == 2) orientationPreset.set(-2);
             }
         };
 
@@ -112,11 +114,12 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             else if (state == State.INTAKE) {
-                robot.powerOffArm();
                 robot.setSlider(Storage.SLIDER_TRANSFER);
                 robot.clawScoringOpen();
                 intakeControls.call();
                 retractionInitiated = false;
+
+                if (robot.getArmAngle() > 30) robot.setArmTransfer(); else robot.powerOffArm();
 
                 if (gamepad.left_trigger > 0 && !(lastGamepad.left_trigger > 0)) {
                     state = State.PASSING;
@@ -141,25 +144,25 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             else if (state == State.INTAKE_EXTEND) {
-                robot.powerOffArm();
                 intakeControls.call();
+                if (robot.getArmAngle() > 30) robot.setArmTransfer(); else robot.powerOffArm();
 
                 if (gamepad.right_trigger > 0 || operator.right_trigger > 0) {
                     retractionInitiated = false;
                     double power;
-                    if (robot.getSlider() > 500) {
-                        double d = 590 - robot.getSlider();
-                        power = Math.abs(Math.pow(d / 590, 3)) * (Math.abs(d) / d);
+                    if (robot.getSlider() > 597) {
+                        double d = 600 - robot.getSlider();
+                        power = Math.abs(Math.pow(d / 600, 9)) * (Math.abs(d) / d);
                     } else power = 1.0;
 
-                    if (gamepad.right_trigger > 0) robot.setSliderPower(power * 0.7);
-                    else if (operator.right_trigger > 0) robot.setSliderPower(power * 0.2);
+                    if (gamepad.right_trigger > 0) robot.setSliderPower(power);
+                    else if (operator.right_trigger > 0) robot.setSliderPower(power * 0.3);
 
                 } else if (gamepad.left_trigger > 0 || operator.left_trigger > 0) {
                     if (gamepad.left_trigger > 0 && lastGamepad.left_trigger > 0)
                         robot.setSliderPower(-0.7);
                     else if (operator.left_trigger > 0 && lastOperator.left_trigger > 0)
-                        robot.setSliderPower(-0.2);
+                        robot.setSliderPower(-0.3);
 
                 } else if (!retractionInitiated) robot.setSliderPower(0);
 
@@ -210,6 +213,8 @@ public class TeleoperatedV1 extends LinearOpMode {
                 robot.intakeSetOrientation(0);
                 robot.intakeUp2();
                 robot.setSlider(575);
+
+                if (robot.getSlider() > 340) robot.clawIntakeOpen();
 
                 if (!(gamepad.left_trigger > 0) && lastGamepad.left_trigger > 0) {
                     robot.clawIntakeOpen();
@@ -386,7 +391,7 @@ public class TeleoperatedV1 extends LinearOpMode {
                     timer1.reset();
                 }
 
-                if (pathingComplete.get()) {
+                if (pathingComplete.get() && timer2.milliseconds() > 750) {
                     state = State.RR_GRAB;
                     timer1.reset();
                 }
@@ -485,12 +490,29 @@ public class TeleoperatedV1 extends LinearOpMode {
                 }
             }
 
+            else if (state == State.ASCENT) {
+                robot.setSlider(Storage.SLIDER_CLEARANCE);
+                robot.intakeDown();
+                robot.setArmAngle(100);
+
+                if (operator.left_bumper && !lastOperator.left_bumper) {
+                    robot.setSlider(Storage.SLIDER_TRANSFER);
+                    robot.setArmTransfer();
+                    robot.intakeDown();
+                    robot.clawIntakeOpen();
+                    robot.clawScoringOpen();
+                    state = State.INTAKE;
+                    timer1.reset();
+                }
+            }
+
             if (gamepad.square && !lastGamepad.square) {
                 if (robot.getArmAngle() < 0 || state == State.INIT) {
                     try {
                         getPath1(drive, currentPose, () -> {
                             robot.setSlider(590);
                             pathingComplete.set(true);
+                            timer2.reset();
                         });
                     } catch (PathContinuityViolationException ignored) {}
                     state = State.RR_PATH_GRAB;
@@ -505,6 +527,8 @@ public class TeleoperatedV1 extends LinearOpMode {
                 timer1.reset();
                 pathingComplete.set(false);
             }
+
+            if (operator.touchpad && !lastOperator.touchpad) state = State.ASCENT;
 
             if (operator.triangle) autoAlignTarget = 0.0;
             else if (operator.square) autoAlignTarget = 90.0;
@@ -539,7 +563,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             if (operator.share) robot.mode = Project1Hardware.Mode.SAMPLE;
             if (operator.options) robot.mode = Project1Hardware.Mode.SPECIMEN;
 
-            if (operator.touchpad && !lastOperator.touchpad) {
+            if (operator.right_bumper && !lastOperator.right_bumper) {
                 robot.powerOffArm();
                 robot.sliderLeft.setPower(0);
                 robot.sliderRight.setPower(0);
@@ -571,6 +595,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             telemetry.addData("Intake", intakePose);
             telemetry.addData("Slider(E)", robot.getSlider());
             telemetry.addData("Slider(I)", robot.getSliderInches());
+            telemetry.addData("Slider(P)", robot.sliderLeft.getPower());
             telemetry.addData("Arm(E)", robot.arm.getCurrentPosition());
             telemetry.addData("Arm(A)", robot.getArmAngle());
             telemetry.update();
@@ -597,7 +622,26 @@ public class TeleoperatedV1 extends LinearOpMode {
         RR_TRANSFER,
         RR_APPROACH,
         RR_SCORE,
-        RR_PATH_RETURN
+        RR_PATH_RETURN,
+        ASCENT
+    }
+
+    interface MethodReference {void call();}
+
+    public class UltrasonicReset implements Runnable {
+        @Override
+        public void run() {
+            try {
+                drive.setPoseEstimate(PoseEstimation.getUltrasonicPose(
+                        robot.ultraLeft.getDistance(),
+                        robot.ultraRight.getDistance(),
+                        robot.getIMU()
+                ));
+                gamepad1.rumble(200);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public void getPath1(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
@@ -633,6 +677,4 @@ public class TeleoperatedV1 extends LinearOpMode {
                 .addSpatialMarker(new Vector2d(19.37, -45.26), cb1)
                 .build();
     }
-
-    interface MethodReference {void call();}
 }
