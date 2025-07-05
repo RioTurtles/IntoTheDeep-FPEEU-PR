@@ -33,6 +33,7 @@ public class TeleoperatedV1 extends LinearOpMode {
         drive = new SampleMecanumDriveCancelable(hardwareMap);
         Project1Hardware.PIDController headingController = new Project1Hardware.PIDController(0.625, 0.001, 0.001);
         State state = State.INIT;
+        ScoringMode scoringMode = ScoringMode.AUTOMATIC;
         Gamepad gamepad = new Gamepad();
         Gamepad lastGamepad = new Gamepad();
         Gamepad operator = new Gamepad();
@@ -101,6 +102,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             if (state == State.AUTONOMOUS_END) {
                 state = State.INTAKE_EXTEND;
                 robot.intakeUp2();
+                robot.clawIntakeOpen();
                 timer1.reset();
             }
 
@@ -214,8 +216,6 @@ public class TeleoperatedV1 extends LinearOpMode {
                 robot.intakeUp2();
                 robot.setSlider(575);
 
-                if (robot.getSlider() > 340) robot.clawIntakeOpen();
-
                 if (!(gamepad.left_trigger > 0) && lastGamepad.left_trigger > 0) {
                     robot.clawIntakeOpen();
                     robot.setSlider(Storage.SLIDER_TRANSFER);
@@ -328,12 +328,6 @@ public class TeleoperatedV1 extends LinearOpMode {
                     timer1.reset();
                     cycles++;
                 }
-
-                if ((gamepad.options && !lastGamepad.options)
-                        || (gamepad.share && !lastGamepad.share)) {
-                    state = State.TRANSITION;
-                    timer1.reset();
-                }
             }
 
             else if (state == State.RETURN) {
@@ -377,7 +371,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             else if (state == State.RR_PATH_GRAB) {
-                if (!drive.isBusy()) {
+                if (!drive.isBusy() && !pathingComplete.get()) {
                     drive.followTrajectoryAsync(pathGrab);
                     robot.clawIntakeOpen();
                     robot.intakeDown();
@@ -418,7 +412,8 @@ public class TeleoperatedV1 extends LinearOpMode {
             }
 
             else if (state == State.RR_TRANSFER) {
-                if (!drive.isBusy()) drive.followTrajectoryAsync(pathChamber);
+                if (!drive.isBusy() && scoringMode == ScoringMode.AUTOMATIC)
+                    drive.followTrajectoryAsync(pathChamber);
 
                 if (robot.sliderInPosition() || timer1.milliseconds() > 1000) {
                     state = State.RR_APPROACH;
@@ -436,10 +431,20 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             else if (state == State.RR_APPROACH) {
                 if (pathingComplete.get()) {
-                    robot.setArmAngle(113);
+                    robot.setArmAngle(168);
+                    getPath3(drive, currentPose, () -> pathingComplete.set(true),
+                            () -> {robot.setArmTransfer(); robot.clawScoringOpen();});
                     state = State.RR_SCORE;
                     timer1.reset();
-                } else if (timer1.milliseconds() > 750) robot.setArmAngle(30);
+                } else if (timer1.milliseconds() > 750) {
+                    robot.setArmAngle(30);
+                    if (scoringMode == ScoringMode.MANUAL) {
+                        state = State.SCORING;
+                        chambered = false;
+                        pathingComplete.set(false);
+                        timer1.reset();
+                    }
+                }
                 else if (timer1.milliseconds() > 500)
                     robot.setSlider(Storage.SLIDER_CLEARANCE + 100);
                 else if (timer1.milliseconds() > 250) robot.clawIntakeOpen();
@@ -493,7 +498,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             else if (state == State.ASCENT) {
                 robot.setSlider(Storage.SLIDER_CLEARANCE);
                 robot.intakeDown();
-                robot.setArmAngle(100);
+                robot.setArmAngle(115);
 
                 if (operator.left_bumper && !lastOperator.left_bumper) {
                     robot.setSlider(Storage.SLIDER_TRANSFER);
@@ -533,7 +538,7 @@ public class TeleoperatedV1 extends LinearOpMode {
             if (operator.triangle) autoAlignTarget = 0.0;
             else if (operator.square) autoAlignTarget = 90.0;
             else if (operator.circle) autoAlignTarget = -90.0;
-            else if (operator.cross) autoAlignTarget = 45.0;
+            else if (operator.cross) autoAlignTarget = 65.0;
             else autoAlignTarget = null;
 
             if (Objects.nonNull(autoAlignTarget)) {
@@ -560,6 +565,8 @@ public class TeleoperatedV1 extends LinearOpMode {
                 horizontal *= 0.8;
             } else headingController.reset();
 
+            if (gamepad.share) scoringMode = ScoringMode.AUTOMATIC;
+            if (gamepad.options) scoringMode = ScoringMode.MANUAL;
             if (operator.share) robot.mode = Project1Hardware.Mode.SAMPLE;
             if (operator.options) robot.mode = Project1Hardware.Mode.SPECIMEN;
 
@@ -588,6 +595,8 @@ public class TeleoperatedV1 extends LinearOpMode {
 
             telemetry.addData("State", state);
             telemetry.addData("Mode", robot.mode);
+            telemetry.addLine(scoringMode + " SCORING");
+            telemetry.addLine();
             telemetry.addData("Cycles", cycles);
             telemetry.addData("Orientation", orientationPreset.intValue() * 45 + "°");
             telemetry.addLine();
@@ -626,6 +635,8 @@ public class TeleoperatedV1 extends LinearOpMode {
         ASCENT
     }
 
+    enum ScoringMode {AUTOMATIC, MANUAL}
+
     interface MethodReference {void call();}
 
     public class UltrasonicReset implements Runnable {
@@ -646,13 +657,10 @@ public class TeleoperatedV1 extends LinearOpMode {
 
     public void getPath1(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
         if (pose.getY() > -29.19) {
-            TrajectoryBuilder builder = drive.trajectoryBuilder(pose, true);
-            if (pose.getX() > 0)
-                builder.splineTo(new Vector2d(39.33, -29.19), Math.toRadians(243.21));
-            else builder.splineTo(new Vector2d(-39.33, -29.19), Math.toRadians(243.21));
-            pathGrab = builder
-                    .splineToSplineHeading(new Pose2d(19.37, -45.26, Math.toRadians(135.00)), Math.toRadians(135.00))
-                    .addSpatialMarker(new Vector2d(19.37, -45.26), callback)
+            pathGrab = drive.trajectoryBuilder(pose, true)
+                    .splineTo(new Vector2d(-39.33, -29.19), Math.toRadians(243.21))
+                    .splineToSplineHeading(new Pose2d(19.37 + cycles * 0.8, -45.26 + cycles * 0.8, Math.toRadians(135.00)), Math.toRadians(135.00))
+                    .addSpatialMarker(new Vector2d(19.37 + cycles * 0.8, -45.26 + cycles * 0.8), callback)
                     .build();
             return;
         }
@@ -665,7 +673,7 @@ public class TeleoperatedV1 extends LinearOpMode {
 
     public void getPath2(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback callback) {
         pathChamber = drive.trajectoryBuilder(pose, false)
-                .lineToSplineHeading(new Pose2d(3.30 - (cycles * 1.55), -33.25, Math.toRadians(90.00)))
+                .lineToSplineHeading(new Pose2d(3.30 - (cycles * 1.55), -30.25, Math.toRadians(90.00)))
                 .addSpatialMarker(new Vector2d(3.30 - (cycles * 1.55)), callback)
                 .build();
     }
@@ -673,7 +681,7 @@ public class TeleoperatedV1 extends LinearOpMode {
     public void getPath3(SampleMecanumDriveCancelable drive, Pose2d pose, MarkerCallback cb1, MarkerCallback cb2) {
         pathObservation = drive.trajectoryBuilder(pose, false)
                 .lineToSplineHeading(new Pose2d(19.37, -45.26, Math.toRadians(135.00)))
-                .addSpatialMarker(new Vector2d(8.00, -35.00), cb2)
+                .addSpatialMarker(new Vector2d(19.37, -45.26), cb2)
                 .addSpatialMarker(new Vector2d(19.37, -45.26), cb1)
                 .build();
     }

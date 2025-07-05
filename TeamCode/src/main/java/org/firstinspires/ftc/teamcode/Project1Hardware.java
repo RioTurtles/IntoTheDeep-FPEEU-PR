@@ -34,7 +34,7 @@ public class Project1Hardware {
     final double PPR = ((1 + ((double) 46 / 11)) * 28);  // ~118.1
     boolean intakeUp = false, clawIntakeOpen, clawScoringOpen;
 
-    public static double P = 30;
+    public static double P = 22;
     public static double I = 5;
     public static double D = 5;
     public static double F = 5;
@@ -206,11 +206,11 @@ public class Project1Hardware {
 
     public void powerOffArm() {arm.setPower(0);}
     public void setArmAngle(double angle) {setArmAngle(angle, 1);}
-    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE, 0.2);}
+    public void setArmTransfer() {setArmAngle(INITIAL_ANGLE, 0.3);}
     public void setArmBasketFront() {setArmAngle(45);}
     public void setArmBasketRear() {setArmAngle(135);}
     public void setArmScoring() {setArmAngle(15);}
-    public void setArmChambered() {setArmAngle(115);}
+    public void setArmChambered() {setArmAngle(168);}
     public boolean armInPosition() {return armInPosition(2.5);}
 
     public void clawIntakeOpen() {clawIntake.setPosition(0.32); clawIntakeOpen = true;}

@@ -27,7 +27,7 @@ public class AutonomousChamber extends LinearOpMode {
 
         Pose2d currentPose = new Pose2d();
         Pose2d startPose = new Pose2d(8.17, -62.99, Math.toRadians(90.00));
-        Pose2d chamberPose = new Pose2d(11.05, -32.89, Math.toRadians(90.00));
+        Pose2d chamberPose = new Pose2d(11.25, -32.89, Math.toRadians(90.00));
 
         TrajectorySequence pathPreload = drive.trajectorySequenceBuilder(startPose)
                 .lineToConstantHeading(chamberPose.vec())
@@ -45,8 +45,8 @@ public class AutonomousChamber extends LinearOpMode {
         telemetry.addData("Objective", objective);
         telemetry.update();
 
-        waitForStart();
         drive.setPoseEstimate(startPose);
+        waitForStart();
         objective = Objective.PATH_TO_PRELOAD;
 
         while (opModeIsActive()) {
@@ -69,7 +69,7 @@ public class AutonomousChamber extends LinearOpMode {
                 }
 
                 pathTransition = drive.trajectorySequenceBuilder(new Pose2d(-0.09, -32.89, Math.toRadians(90.00)))
-                        .lineToSplineHeading(new Pose2d(30.26, -43.59, Math.toRadians(225.00)))
+                        .lineToSplineHeading(new Pose2d(30.26, -44.59, Math.toRadians(225.00)))
                         .addDisplacementMarker(1.0, () -> {
                             robot.clawIntakeOpen();
                             robot.setSlider(550);
@@ -81,10 +81,13 @@ public class AutonomousChamber extends LinearOpMode {
             }
 
             if (objective == Objective.PATH_TO_FIRST) {
-                if (!run1Async.get()) {drive.followTrajectorySequence(pathTransition); run1Async.set(true);}
+                if (!run1Async.get()) {
+                    robot.setArmTransfer();
+                    drive.followTrajectorySequence(pathTransition);
+                    run1Async.set(true);
+                }
 
                 if (run2Async.get()) {
-                    robot.setArmTransfer();
                     objective = Objective.GRAB;
                     run1Async.set(false);
                     run2Async.set(false);
@@ -161,7 +164,7 @@ public class AutonomousChamber extends LinearOpMode {
                     if (!run1Async.get()) {drive.followTrajectorySequenceAsync(pathCycleEnter); run1Async.set(true);}
                 } else {
                     pathCycleEnter = drive.trajectorySequenceBuilder(currentPose)
-                            .lineToSplineHeading(new Pose2d(9.50 - (cycles * 1.55), -32.25, Math.toRadians(90.00)))
+                            .lineToSplineHeading(new Pose2d(4.50 - (cycles * 1.55), -32.25, Math.toRadians(90.00)))
                             .build();
                     robot.clawIntakeClose();
                 }
